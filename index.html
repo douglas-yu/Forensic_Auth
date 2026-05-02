@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forensic Authenticate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.8.0/Recharts.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --surface: #111318;
+    --surface2: #181c22;
+    --border: #1e2530;
+    --border2: #252d3a;
+    --primary: #00d4ff;
+    --primary-dim: rgba(0,212,255,0.08);
+    --primary-border: rgba(0,212,255,0.2);
+    --text: #e2e8f0;
+    --muted: #5a6a7e;
+    --muted2: #8895a7;
+    --red: #ef4444;
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --violet: #8b5cf6;
+    --rose: #f43f5e;
+    --cyan: #06b6d4;
+    --blue: #3b82f6;
+    --orange: #f97316;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-display: 'Inter', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-mono); overflow: hidden; }
+
+  /* Layout */
+  #app { display: flex; height: 100vh; }
+  #sidebar {
+    width: 220px; min-width: 220px; background: var(--surface);
+    border-right: 1px solid var(--border); display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  #content { flex: 1; overflow: auto; }
+
+  /* Sidebar */
+  .sidebar-header {
+    padding: 18px 16px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-display); font-size: 13px; font-weight: 700;
+    letter-spacing: 0.05em; color: var(--text);
+  }
+  .sidebar-logo svg { color: var(--primary); }
+  .sidebar-sub { font-size: 11px; color: var(--muted); letter-spacing: 0.15em; margin-top: 2px; font-family: var(--font-mono); }
+  .nav-section { padding: 10px 8px 4px; }
+  .nav-label { font-size: 13px; letter-spacing: 0.15em; color: var(--muted); padding: 0 8px 6px; text-transform: uppercase; }
+  .nav-item {
+    display: flex; align-items: center; gap: 9px; padding: 7px 10px;
+    border-radius: 6px; cursor: pointer; font-size: 13.5px; color: var(--muted2);
+    transition: all 0.15s; border: 1px solid transparent; margin-bottom: 1px;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--primary-dim); color: var(--primary); border-color: var(--primary-border); }
+  .nav-item svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  /* Evidence pill in sidebar */
+  .evidence-pill {
+    margin: 8px; padding: 8px 10px; background: var(--surface2);
+    border: 1px solid var(--border2); border-radius: 8px; font-size: 13px; color: var(--muted2);
+  }
+  .evidence-pill .ev-name { color: var(--text); font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .evidence-pill .ev-dim { color: var(--muted); font-size: 12px; margin-top: 1px; }
+
+  /* Topbar */
+  #topbar {
+    height: 42px; min-height: 42px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 16px; gap: 12px;
+    background: var(--surface); font-size: 11px; color: var(--muted2);
+  }
+  #topbar .page-title { font-family: var(--font-display); font-weight: 600; font-size: 13px; color: var(--text); }
+  #topbar .breadcrumb { color: var(--muted); font-size:13px; letter-spacing: 0.05em; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 6px; font-family: var(--font-mono); font-size: 13px;
+    cursor: pointer; border: 1px solid var(--border2); background: var(--surface2);
+    color: var(--text); transition: all 0.15s; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--primary-border); color: var(--primary); }
+  .btn.btn-primary { background: var(--primary); border-color: var(--primary); color: #000; font-weight: 600; }
+  .btn.btn-primary:hover { background: #00b8e0; }
+  .btn.btn-sm { padding: 4px 9px; font-size: 13px; }
+  .btn.btn-ghost { background: transparent; border-color: transparent; color: var(--muted2); }
+  .btn.btn-ghost:hover { color: var(--text); background: var(--surface2); }
+  .btn.btn-danger { color: var(--red); }
+  .btn.btn-danger:hover { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn svg { width: 13px; height: 13px; }
+
+  /* Input */
+  .input {
+    width: 100%; padding: 7px 11px; background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: 6px; font-family: var(--font-mono); font-size: 12px; color: var(--text);
+    outline: none; transition: border-color 0.15s;
+  }
+  .input:focus { border-color: var(--primary-border); }
+  .input::placeholder { color: var(--muted); }
+  .input-group { position: relative; }
+  .input-group .input-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+  .input-group .input-icon svg { width: 13px; height: 13px; }
+  .input-group .input { padding-left: 32px; }
+  textarea.input { resize: vertical; min-height: 80px; }
+  select.input { cursor: pointer; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+  .card-body { padding: 16px; }
+  .section-label { font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+
+  /* Toolbar (canvas pages) */
+  .toolbar {
+    height: 44px; min-height: 44px; display: flex; align-items: center; gap: 12px;
+    padding: 0 14px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0;
+  }
+  .toolbar-title { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; }
+  .toolbar-title svg { width: 14px; height: 14px; color: var(--primary); }
+  .toolbar-sep { width: 1px; height: 18px; background: var(--border2); }
+  .toolbar-label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+  /* Slider */
+  .slider-wrap { display: flex; align-items: center; gap: 8px; }
+  .slider-val { font-size: 13px; color: var(--muted2); min-width: 32px; }
+  input[type=range] {
+    width: 100px; height: 4px; -webkit-appearance: none; appearance: none;
+    background: var(--border2); border-radius: 2px; outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+    background: var(--primary); cursor: pointer;
+  }
+
+  /* Badge */
+  .badge {
+    display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 4px;
+    font-size: 14px; font-weight: 500; letter-spacing: 0.06em;
+  }
+  .badge-blue { background: rgba(59,130,246,0.15); color: #60a5fa; }
+  .badge-green { background: rgba(34,197,94,0.12); color: #4ade80; }
+  .badge-amber { background: rgba(245,158,11,0.15); color: #fbbf24; }
+  .badge-red { background: rgba(239,68,68,0.15); color: #f87171; }
+  .badge-muted { background: var(--surface2); color: var(--muted2); }
+
+  /* Status / verdict colors */
+  .status-open { color: #60a5fa; background: rgba(59,130,246,0.12); }
+  .status-in_progress { color: #fbbf24; background: rgba(245,158,11,0.12); }
+  .status-completed { color: #4ade80; background: rgba(34,197,94,0.12); }
+  .status-archived { color: var(--muted2); background: var(--surface2); }
+  .verdict-pending { color: var(--muted2); background: var(--surface2); }
+  .verdict-authentic { color: #4ade80; background: rgba(34,197,94,0.12); }
+  .verdict-manipulated { color: #f87171; background: rgba(239,68,68,0.12); }
+  .verdict-inconclusive { color: #fbbf24; background: rgba(245,158,11,0.12); }
+
+  /* Canvas container */
+  .canvas-wrap {
+    flex: 1; overflow: auto; background: #070a0d;
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+  }
+  .canvas-wrap canvas { max-width: 100%; max-height: 100%; border: 1px solid var(--border); border-radius: 4px; }
+
+  /* Status bar */
+  .status-bar {
+    height: 26px; min-height: 26px; border-top: 1px solid var(--border);
+    background: var(--surface); display: flex; align-items: center; padding: 0 14px;
+    gap: 20px; font-size: 13px; color: var(--muted); flex-shrink: 0;
+  }
+  .status-bar span { display: flex; align-items: center; gap: 4px; }
+
+  /* Alert boxes */
+  .alert { padding: 10px 12px; border-radius: 7px; font-size: 13px; display: flex; gap: 9px; align-items: flex-start; }
+  .alert svg { width: 13px; height: 13px; flex-shrink: 0; margin-top: 1px; }
+  .alert-warning { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); color: #fbbf24; }
+  .alert-info { background: var(--surface2); border: 1px solid var(--border2); color: var(--muted2); }
+  .alert-success { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2); color: #4ade80; }
+
+  /* Empty state */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; gap: 12px; color: var(--muted);
+  }
+  .empty-state svg { width: 48px; height: 48px; opacity: 0.2; }
+  .empty-state p { font-size: 12px; }
+
+  /* Spinner */
+  .spinner {
+    width: 20px; height: 20px; border: 2px solid var(--border2);
+    border-top-color: var(--primary); border-radius: 50%; animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Hex viewer */
+  .hex-row { display: flex; align-items: baseline; padding: 1px 4px; font-size: 13px; border-radius: 3px; }
+  .hex-row:hover { background: var(--surface2); }
+  .hex-offset { width: 80px; flex-shrink: 0; color: var(--primary); }
+  .hex-bytes { flex: 1; color: var(--text); letter-spacing: 0.04em; }
+  .hex-ascii { width: 350px; margin-left: 10px; color: var(--muted); }
+  .hex-highlight { background: rgba(245,158,11,0.25); color: #fbbf24; border-radius: 2px; }
+
+  /* Table */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table th { background: var(--surface2); color: var(--muted); font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); font-weight: 500; }
+  .data-table td { padding: 7px 12px; border-bottom: 1px solid var(--border); }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
+  .data-table td:first-child { color: var(--muted2); }
+  .data-table td:last-child { color: var(--text); word-break: break-all; }
+
+  /* Grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+  .grid-tools { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+
+  /* Tool card */
+  .tool-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; cursor: pointer; transition: all 0.18s;
+  }
+  .tool-card:hover { border-color: var(--primary-border); background: var(--surface2); }
+  .tool-card .tc-icon { width: 18px; height: 18px; margin-bottom: 10px; }
+  .tool-card .tc-title { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 3px; font-family: var(--font-display); }
+  .tool-card .tc-desc { font-size: 14px; color: var(--muted); }
+
+  /* Histogram chart area */
+  #hist-canvas { width: 100%; height: 220px; background: transparent; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 2px; background: var(--surface2); padding: 3px; border-radius: 7px; border: 1px solid var(--border); }
+  .tab { padding: 4px 11px; border-radius: 5px; font-size: 13px; cursor: pointer; color: var(--muted2); transition: all 0.15s; }
+  .tab.active { background: var(--surface); color: var(--primary); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* Form row */
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-field { display: flex; flex-direction: column; gap: 5px; }
+  .form-field label { font-size: 12px; color: var(--muted2); }
+
+  /* Print */
+  @media print {
+    #sidebar, #topbar, .no-print { display: none !important; }
+    #main { width: 100%; }
+    #content { overflow: visible; }
+    body { background: white; color: black; }
+    .card { border: 1px solid #ccc; }
+  }
+
+  /* Separator */
+  .sep { height: 1px; background: var(--border); margin: 16px 0; }
+
+  /* Tooltip */
+  .tooltip-wrap { position: relative; }
+  .tooltip-wrap .tooltip-text {
+    display: none; position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%);
+    background: #222; border: 1px solid var(--border2); padding: 3px 7px; border-radius: 4px;
+    font-size: 13px; color: var(--muted2); white-space: nowrap; z-index: 100;
+  }
+  .tooltip-wrap:hover .tooltip-text { display: block; }
+
+  /* Modal overlay for new case form */
+  .form-panel {
+    border: 1px solid var(--primary-border); background: var(--surface); border-radius: 10px; padding: 16px; margin-bottom: 14px;
+  }
+  .form-panel-title { font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--primary); margin-bottom: 12px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  /* Animations */
+  .fade-in { animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Drop zone */
+  .drop-zone {
+    border: 2px dashed var(--border2); border-radius: 10px; padding: 48px 24px;
+    text-align: center; transition: all 0.2s; cursor: pointer; position: relative;
+  }
+  .drop-zone.over { border-color: var(--primary); background: var(--primary-dim); }
+  .drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+  /* Active case banner */
+  .case-banner {
+    background: var(--primary-dim); border: 1px solid var(--primary-border); border-radius: 8px;
+    padding: 9px 14px; display: flex; align-items: center; gap: 10px; font-size: 13px;
+  }
+  .case-banner svg { width: 14px; height: 14px; color: var(--primary); flex-shrink: 0; }
+  .case-banner .cb-num { color: var(--primary); font-weight: 500; }
+  .case-banner .cb-title { color: var(--muted2); }
+  .case-banner .spacer { flex: 1; }
+
+  /* Page padding */
+  .page { padding: 24px 28px; max-width: 960px; }
+  .page-full { padding: 0; display: flex; flex-direction: column; height: 100%; }
+
+  /* Pixel info col */
+  .pixel-swatch { width: 14px; height: 10px; border-radius: 2px; border: 1px solid var(--border2); display: inline-block; }
+
+  /* Stats grid */
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .stat-card .sc-label { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .stat-card .sc-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px; }
+  .stat-card .sc-row span:first-child { color: var(--muted); }
+
+  /* Search dropdown */
+  .search-results {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--surface); border: 1px solid var(--border2); border-radius: 8px;
+    z-index: 50; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  .search-result-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+    border-bottom: 1px solid var(--border); cursor: default; transition: background 0.1s;
+  }
+  .search-result-item:last-child { border-bottom: none; }
+  .search-result-item:hover { background: var(--surface2); }
+  .search-result-item svg { width: 13px; height: 13px; color: var(--primary); flex-shrink: 0; }
+  .sri-num { font-size: 10px; color: var(--primary); font-weight: 500; }
+  .sri-title { font-size: 12px; color: var(--text); }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Forensic Auth
+      </div>
+      <div class="sidebar-sub">DIGITAL IMAGE FORENSICS</div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Navigation</div>
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('cases')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+        Case Manager
+      </div>
+      <div class="nav-item" onclick="showPage('load')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Load Evidence
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Analysis Tools</div>
+      <div class="nav-item" onclick="showPage('viewer')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Image Viewer
+      </div>
+      <div class="nav-item" onclick="showPage('metadata')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Metadata / EXIF
+      </div>
+      <div class="nav-item" onclick="showPage('ela')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        ELA Analysis
+      </div>
+      <div class="nav-item" onclick="showPage('histogram')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Histogram
+      </div>
+      <div class="nav-item" onclick="showPage('luminance')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+        Luminance
+      </div>
+      <div class="nav-item" onclick="showPage('hex')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Hex Viewer
+      </div>
+      <div class="nav-item" onclick="showPage('report')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Report
+      </div>
+    </div>
+
+    <div style="flex:1"></div>
+
+    <!-- Evidence indicator -->
+    <div id="evidence-pill" style="display:none" class="evidence-pill">
+      <div style="font-size:12px;color:var(--primary);letter-spacing:0.12em">EVIDENCE LOADED</div>
+      <div class="ev-name" id="ev-name-sidebar">—</div>
+      <div class="ev-dim" id="ev-dim-sidebar">—</div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <div id="main">
+    <div id="topbar">
+      <span class="page-title" id="topbar-title">Dashboard</span>
+      <div style="flex:1"></div>
+      <span id="topbar-case" style="display:none;font-size:12px;color:var(--primary)"></span>
+    </div>
+    <div id="content"></div>
+  </div>
+</div>
+
+<script>
+// ==================== STATE ====================
+const state = {
+  imageData: null,       // loaded image
+  activeCase: null,      // active forensic case
+  cases: [],             // all cases (localStorage)
+  currentPage: 'dashboard',
+};
+
+// ==================== CASE STORAGE ====================
+function loadCases() {
+  try { state.cases = JSON.parse(localStorage.getItem('fa_cases') || '[]'); }
+  catch(e) { state.cases = []; }
+}
+function saveCases() {
+  localStorage.setItem('fa_cases', JSON.stringify(state.cases));
+}
+function newCaseId() { return 'case_' + Date.now(); }
+
+loadCases();
+
+// ==================== IMAGE LOADING ====================
+function loadImageFile(file) {
+  return new Promise(resolve => {
+    if (!file || !file.type.startsWith('image/')) return resolve(null);
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        state.imageData = {
+          file, url, name: file.name,
+          width: img.width, height: img.height,
+          size: file.size, type: file.type,
+          lastModified: file.lastModified,
+          arrayBuffer: e.target.result,
+          imageElement: img,
+        };
+        updateSidebarEvidence();
+        resolve(state.imageData);
+      };
+      reader.readAsArrayBuffer(file);
+    };
+    img.src = url;
+  });
+}
+
+function updateSidebarEvidence() {
+  const pill = document.getElementById('evidence-pill');
+  const name = document.getElementById('ev-name-sidebar');
+  const dim = document.getElementById('ev-dim-sidebar');
+  if (state.imageData) {
+    pill.style.display = '';
+    name.textContent = state.imageData.name;
+    dim.textContent = `${state.imageData.width}×${state.imageData.height} · ${(state.imageData.size/1024).toFixed(1)}KB`;
+  } else {
+    pill.style.display = 'none';
+  }
+}
+
+function updateTopbarCase() {
+  const el = document.getElementById('topbar-case');
+  if (state.activeCase) {
+    el.style.display = '';
+    el.textContent = state.activeCase.case_number;
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// ==================== ROUTING ====================
+const PAGE_TITLES = {
+  dashboard: 'Dashboard', cases: 'Case Manager', load: 'Load Evidence',
+  viewer: 'Image Viewer', metadata: 'Metadata / EXIF', ela: 'ELA Analysis',
+  histogram: 'Histogram Analysis', luminance: 'Luminance & Gradient', hex: 'Hex Viewer', report: 'Forensic Report',
+};
+
+function showPage(name) {
+  state.currentPage = name;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll(`.nav-item[onclick*="${name}"]`).forEach(el => el.classList.add('active'));
+  document.getElementById('topbar-title').textContent = PAGE_TITLES[name] || name;
+  updateTopbarCase();
+  const content = document.getElementById('content');
+  content.innerHTML = '';
+  content.style.height = '100%';
+  const pages = { dashboard: renderDashboard, cases: renderCases, load: renderLoad, viewer: renderViewer, metadata: renderMetadata, ela: renderELA, histogram: renderHistogram, luminance: renderLuminance, hex: renderHex, report: renderReport };
+  if (pages[name]) pages[name](content);
+}
+
+// ==================== SVG ICONS ====================
+const icons = {
+  upload: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`,
+  shield: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+  briefcase: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>`,
+  image: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+  arrow: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`,
+  warn: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+  check: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>`,
+  info: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+  copy: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`,
+  printer: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`,
+  search: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+  folder: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>`,
+  edit: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+  trash: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>`,
+  plus: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+  x: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+  xcircle: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+  chevLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>`,
+  chevRight: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>`,
+  zoomIn: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`,
+  zoomOut: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`,
+  rotate: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>`,
+  crosshair: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>`,
+};
+
+function noEvidenceHTML(iconSvg, msg) {
+  return `<div class="empty-state fade-in">${iconSvg}<p>${msg}</p><button class="btn" onclick="showPage('load')">${icons.upload} Load Evidence</button></div>`;
+}
+
+// ==================== DASHBOARD ====================
+function renderDashboard(el) {
+  const tools = [
+    { icon: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`, label: 'Load Evidence', desc: 'Upload image for examination', page: 'load', color: 'var(--primary)' },
+    { icon: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`, label: 'Image Viewer', desc: 'Zoom, pan & inspect pixels', page: 'viewer', color: '#60a5fa' },
+    { icon: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`, label: 'Metadata / EXIF', desc: 'Extract embedded metadata', page: 'metadata', color: '#4ade80' },
+    { icon: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`, label: 'ELA Analysis', desc: 'Error Level Analysis', page: 'ela', color: '#fbbf24' },
+    { icon: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`, label: 'Histogram', desc: 'Color channel distribution', page: 'histogram', color: '#a78bfa' },
+    { icon: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>`, label: 'Luminance Gradient', desc: 'Surface plot analysis', page: 'luminance', color: '#fb7185' },
+    { icon: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`, label: 'Hex Viewer', desc: 'Raw file byte inspector', page: 'hex', color: '#22d3ee' },
+    { icon: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`, label: 'Report', desc: 'Generate forensic report', page: 'report', color: '#fb923c' },
+  ];
+
+  let activeCaseHTML = state.activeCase ? `
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:36px;height:36px;border-radius:8px;background:var(--primary-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0">${icons.briefcase}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:10px;color:var(--primary)">${state.activeCase.case_number}</div>
+        <div style="font-size:13px;font-weight:500;font-family:var(--font-display)">${state.activeCase.title}</div>
+        ${state.activeCase.examiner ? `<div style="font-size:10px;color:var(--muted)">Examiner: ${state.activeCase.examiner}</div>` : ''}
+      </div>
+      <button class="btn btn-sm" onclick="showPage('load')">${icons.upload} Load Evidence</button>
+      <button class="btn btn-ghost btn-sm" onclick="state.activeCase=null;updateTopbarCase();renderDashboard(document.getElementById('content'))" title="Close case">${icons.xcircle}</button>
+    </div>
+  ` : `
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:36px;height:36px;border-radius:8px;border:1px dashed var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:0.4">${icons.briefcase}</div>
+      <div>
+        <div style="font-size:12px;color:var(--muted)">No case selected</div>
+        <a href="#" onclick="showPage('cases');return false" style="font-size:12px;color:var(--primary);text-decoration:none;display:flex;align-items:center;gap:4px;margin-top:3px">Open a case ${icons.arrow}</a>
+      </div>
+    </div>
+  `;
+
+  let evidenceHTML = state.imageData ? `
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div style="width:72px;height:72px;border-radius:8px;border:1px solid var(--border);overflow:hidden;background:var(--surface2);flex-shrink:0">
+        <img src="${state.imageData.url}" style="width:100%;height:100%;object-fit:cover" />
+      </div>
+      <div style="font-size:12px">
+        <div style="font-size:13px;font-weight:500;font-family:var(--font-display)">${state.imageData.name}</div>
+        <div style="color:var(--muted);margin-top:3px">${state.imageData.width} × ${state.imageData.height} px</div>
+        <div style="color:var(--muted)">${(state.imageData.size/1024).toFixed(1)} KB · ${state.imageData.type}</div>
+      </div>
+    </div>
+  ` : `
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div style="width:72px;height:72px;border-radius:8px;border:1px dashed var(--border2);display:flex;align-items:center;justify-content:center;opacity:0.4">${icons.image}</div>
+      <div>
+        <div style="font-size:12px;color:var(--muted)">No evidence loaded</div>
+        <a href="#" onclick="showPage('load');return false" style="font-size:13px;color:var(--primary);text-decoration:none;display:flex;align-items:center;gap:4px;margin-top:3px">Load an image ${icons.arrow}</a>
+      </div>
+    </div>
+  `;
+
+  el.innerHTML = `<div class="page fade-in">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <span style="color:var(--primary)">${icons.shield}</span>
+          <h1 style="font-family:var(--font-display);font-size:20px;font-weight:700">Forensic Authenticate</h1>
+        </div>
+        <p style="font-size:13px;color:var(--muted);max-width:420px">Digital image forensic examination suite. Load an evidence image to begin analysis using multiple forensic tools.</p>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div style="position:relative;margin-bottom:18px">
+      <div class="input-group">
+        <span class="input-icon">${icons.search}</span>
+        <input class="input" id="dash-search" placeholder="Search cases by number or title..." oninput="dashSearch(this.value)" style="background:var(--surface)">
+      </div>
+      <div id="dash-results" class="search-results" style="display:none"></div>
+    </div>
+
+    <!-- Active case -->
+    <div class="card card-body" style="margin-bottom:14px">
+      <div class="section-label">Active Case</div>
+      ${activeCaseHTML}
+    </div>
+
+    <!-- Evidence -->
+    <div class="card card-body" style="margin-bottom:22px">
+      <div class="section-label">Current Evidence</div>
+      ${evidenceHTML}
+    </div>
+
+    <!-- Tools -->
+    <div class="section-label">Forensic Tools</div>
+    <div class="grid-tools">
+      ${tools.map(t => `
+        <div class="tool-card" onclick="showPage('${t.page}')">
+          <div class="tc-icon" style="color:${t.color}">${t.icon}</div>
+          <div class="tc-title">${t.label}</div>
+          <div class="tc-desc">${t.desc}</div>
+        </div>
+      `).join('')}
+    </div>
+  </div>`;
+
+  // Search logic
+  window.dashSearch = function(q) {
+    const res = document.getElementById('dash-results');
+    if (!q.trim()) { res.style.display = 'none'; return; }
+    const matches = state.cases.filter(c =>
+      c.case_number?.toLowerCase().includes(q.toLowerCase()) ||
+      c.title?.toLowerCase().includes(q.toLowerCase())
+    );
+    if (matches.length === 0) {
+      res.style.display = '';
+      res.innerHTML = `<div style="padding:10px 14px;font-size:13px;color:var(--muted)">No cases found.</div>`;
+    } else {
+      res.style.display = '';
+      res.innerHTML = matches.map(c => `
+        <div class="search-result-item">
+          ${icons.folder}
+          <div style="flex:1;min-width:0">
+            <div class="sri-num">${c.case_number}</div>
+            <div class="sri-title">${c.title}</div>
+          </div>
+          <span class="badge ${c.verdict==='manipulated'?'badge-red':c.verdict==='authentic'?'badge-green':'badge-muted'}">${c.verdict||'pending'}</span>
+        </div>
+      `).join('');
+    }
+  };
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#dash-search') && !e.target.closest('#dash-results')) {
+      const r = document.getElementById('dash-results');
+      if (r) r.style.display = 'none';
+    }
+  });
+}
+
+// ==================== LOAD EVIDENCE ====================
+function renderLoad(el) {
+  if (!state.activeCase) {
+    el.innerHTML = `<div class="page fade-in">
+      <h1 style="font-family:var(--font-display);font-size:20px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:20px">${icons.upload} Load Evidence</h1>
+      <div class="card" style="padding:60px 24px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center">
+        <div style="opacity:0.25">${icons.briefcase}</div>
+        <div>
+          <div style="font-size:13px;font-weight:500">No Active Case</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">You must open a case before loading evidence for examination.</div>
+        </div>
+        <button class="btn btn-primary" onclick="showPage('cases')">${icons.briefcase} Go to Case Manager</button>
+      </div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = `<div class="page fade-in">
+    <h1 style="font-family:var(--font-display);font-size:18px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:6px">${icons.upload} Load Evidence</h1>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:18px">Upload a digital image for forensic examination. Supports JPEG, PNG, TIFF, BMP, WebP.</p>
+
+    <div class="case-banner" style="margin-bottom:18px">
+      ${icons.briefcase}
+      <span class="cb-num">${state.activeCase.case_number}</span>
+      <span class="cb-title">${state.activeCase.title}</span>
+      <span class="spacer"></span>
+      <span style="font-size:13px;color:var(--muted);letter-spacing:0.1em">ACTIVE CASE</span>
+    </div>
+
+    <div class="drop-zone" id="drop-zone" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="handleDrop(event)">
+      <input type="file" accept="image/*" onchange="handleFileInput(event)" />
+      <div id="dz-inner" style="pointer-events:none">
+        <div style="width:52px;height:52px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;opacity:0.6">${icons.image}</div>
+        <div style="font-size:13px;font-weight:500">Drop image here or click to browse</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:4px">Maximum recommended: 20MB</div>
+      </div>
+    </div>
+
+    <div id="loaded-info" style="display:none;margin-top:14px"></div>
+
+    <div class="alert alert-warning" style="margin-top:16px">
+      ${icons.warn}
+      <div>
+        <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:4px">Important Notice</div>
+        <div>All image analysis is performed locally in your browser. No image data is transmitted to external servers.</div>
+        <div style="margin-top:3px">For legal proceedings, ensure chain of custody is maintained for the original evidence file.</div>
+      </div>
+    </div>
+  </div>`;
+
+  if (state.imageData) showLoadedInfo();
+
+  window.handleDrop = async (e) => {
+    e.preventDefault();
+    document.getElementById('drop-zone').classList.remove('over');
+    const file = e.dataTransfer.files[0];
+    await processFile(file);
+  };
+  window.handleFileInput = async (e) => {
+    const file = e.target.files[0];
+    await processFile(file);
+  };
+  async function processFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const inner = document.getElementById('dz-inner');
+    inner.innerHTML = `<div class="spinner" style="margin:0 auto 10px"></div><div style="font-size:12px;color:var(--muted)">Processing image...</div>`;
+    await loadImageFile(file);
+    inner.innerHTML = `<div style="width:52px;height:52px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;opacity:0.6">${icons.image}</div><div style="font-size:13px;font-weight:500">Drop image here or click to browse</div><div style="font-size:10px;color:var(--muted);margin-top:4px">Maximum recommended: 20MB</div>`;
+    showLoadedInfo();
+  }
+  function showLoadedInfo() {
+    if (!state.imageData) return;
+    const d = state.imageData;
+    document.getElementById('loaded-info').style.display = '';
+    document.getElementById('loaded-info').innerHTML = `
+      <div class="card card-body fade-in" style="border-color:var(--primary-border)">
+        <div style="display:flex;gap:14px;align-items:flex-start">
+          <div style="width:88px;height:88px;border-radius:8px;border:1px solid var(--border);overflow:hidden;flex-shrink:0">
+            <img src="${d.url}" style="width:100%;height:100%;object-fit:cover"/>
+          </div>
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:7px;color:var(--primary);margin-bottom:8px;font-size:12px">${icons.check} Evidence Loaded Successfully</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;font-size:10px;margin-bottom:12px">
+              <div><span style="color:var(--muted)">File: </span>${d.name}</div>
+              <div><span style="color:var(--muted)">Type: </span>${d.type}</div>
+              <div><span style="color:var(--muted)">Dimensions: </span>${d.width} × ${d.height}</div>
+              <div><span style="color:var(--muted)">Size: </span>${(d.size/1024).toFixed(1)} KB</div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <button class="btn btn-primary btn-sm" onclick="showPage('viewer')">Open in Viewer</button>
+              <button class="btn btn-sm" onclick="showPage('metadata')">View Metadata</button>
+              <button class="btn btn-sm" onclick="showPage('ela')">ELA Analysis</button>
+              <button class="btn btn-sm" onclick="showPage('histogram')">Histogram</button>
+              <button class="btn btn-sm" onclick="showPage('report')">${icons.arrow} Report</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+}
+
+// ==================== IMAGE VIEWER ====================
+function renderViewer(el) {
+  if (!state.imageData) { el.innerHTML = noEvidenceHTML(icons.image, 'No evidence image loaded'); return; }
+
+  el.innerHTML = `<div class="page-full">
+    <div class="toolbar">
+      <div class="toolbar-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Image Viewer</div>
+      <span style="font-size:13px;color:var(--muted)">${state.imageData.name}</span>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost btn-sm" id="btn-zout">${icons.zoomOut}</button>
+      <input type="range" id="zoom-slider" min="10" max="500" step="5" value="100" style="width:110px" oninput="setZoom(this.value)">
+      <span id="zoom-label" style="font-size:13px;color:var(--muted);min-width:38px;text-align:center">100%</span>
+      <button class="btn btn-ghost btn-sm" id="btn-zin">${icons.zoomIn}</button>
+      <div class="toolbar-sep"></div>
+      <button class="btn btn-ghost btn-sm" onclick="viewerRotate()">${icons.rotate}</button>
+      <button class="btn btn-ghost btn-sm" onclick="viewerReset()">${icons.crosshair}</button>
+    </div>
+    <div class="canvas-wrap" id="viewer-wrap" style="cursor:grab">
+      <canvas id="viewer-canvas"></canvas>
+    </div>
+    <div class="status-bar" id="pixel-bar"><span>Hover over image for pixel information</span></div>
+  </div>`;
+
+  let zoom = 100, rotation = 0, pan = {x:0, y:0}, dragging = false, dragStart = {x:0,y:0};
+  const canvas = document.getElementById('viewer-canvas');
+  const ctx = canvas.getContext('2d');
+  const wrap = document.getElementById('viewer-wrap');
+
+  function draw() {
+    canvas.width = state.imageData.width;
+    canvas.height = state.imageData.height;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.save();
+    ctx.translate(canvas.width/2, canvas.height/2);
+    ctx.rotate(rotation * Math.PI / 180);
+    ctx.drawImage(state.imageData.imageElement, -canvas.width/2, -canvas.height/2);
+    ctx.restore();
+    canvas.style.transform = `translate(${pan.x}px,${pan.y}px) scale(${zoom/100})`;
+    canvas.style.imageRendering = zoom > 200 ? 'pixelated' : 'auto';
+  }
+  draw();
+
+  window.setZoom = v => { zoom = parseInt(v); document.getElementById('zoom-label').textContent = zoom+'%'; document.getElementById('zoom-slider').value = zoom; draw(); };
+  window.viewerRotate = () => { rotation = (rotation+90)%360; draw(); };
+  window.viewerReset = () => { zoom=100; pan={x:0,y:0}; rotation=0; setZoom(100); draw(); };
+  document.getElementById('btn-zout').onclick = () => setZoom(Math.max(10, zoom-25));
+  document.getElementById('btn-zin').onclick = () => setZoom(Math.min(500, zoom+25));
+
+  wrap.addEventListener('mousedown', e => { dragging=true; dragStart={x:e.clientX,y:e.clientY}; wrap.style.cursor='grabbing'; });
+  wrap.addEventListener('mouseup', () => { dragging=false; wrap.style.cursor='grab'; });
+  wrap.addEventListener('mouseleave', () => { dragging=false; wrap.style.cursor='grab'; });
+  wrap.addEventListener('mousemove', e => {
+    if (dragging) {
+      pan.x += e.clientX - dragStart.x; pan.y += e.clientY - dragStart.y;
+      dragStart = {x:e.clientX, y:e.clientY}; draw(); return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
+    const x = Math.floor((e.clientX - rect.left) * sx);
+    const y = Math.floor((e.clientY - rect.top) * sy);
+    if (x>=0 && x<canvas.width && y>=0 && y<canvas.height) {
+      const px = ctx.getImageData(x,y,1,1).data;
+      const hex = '#'+[px[0],px[1],px[2]].map(v=>v.toString(16).padStart(2,'0')).join('');
+      document.getElementById('pixel-bar').innerHTML = `<span>X: ${x} Y: ${y}</span><span>R: ${px[0]} G: ${px[1]} B: ${px[2]}</span><span>A: ${px[3]}</span><span>Color: <span class="pixel-swatch" style="background:${hex}"></span> ${hex}</span>`;
+    }
+  });
+}
+
+// ==================== METADATA / EXIF ====================
+function parseExifFromBuffer(buf) {
+  const view = new DataView(buf);
+  const meta = {};
+  meta['File.Format'] = (() => {
+    const b0=view.getUint8(0),b1=view.getUint8(1);
+    if(b0===0xFF&&b1===0xD8)return'JPEG';if(b0===0x89&&b1===0x50)return'PNG';
+    if(b0===0x47&&b1===0x49)return'GIF';if(b0===0x42&&b1===0x4D)return'BMP';
+    if(b0===0x52&&b1===0x49)return'WEBP';return'Unknown';
+  })();
+  meta['File.Size'] = buf.byteLength;
+  if (view.getUint16(0)===0xFFD8) {
+    let off=2;
+    while(off<view.byteLength-1){
+      const mk=view.getUint16(off);
+      if(mk===0xFFE1){const len=view.getUint16(off+2);parseExifBlock(view,off+4,len-2,meta);break;}
+      else if(mk===0xFFE0){const len=view.getUint16(off+2);meta['JFIF.Version']=`${view.getUint8(off+11)}.${view.getUint8(off+12)}`;off+=2+len;}
+      else if((mk&0xFF00)===0xFF00){const len=view.getUint16(off+2);off+=2+len;}else break;
+    }
+    let off2=2,qtc=0;
+    while(off2<view.byteLength-1){const mk=view.getUint16(off2);if(mk===0xFFDB){qtc++;const len=view.getUint16(off2+2);off2+=2+len;}else if((mk&0xFF00)===0xFF00){if(mk===0xFFDA)break;const len=view.getUint16(off2+2);off2+=2+len;}else break;}
+    if(qtc>0)meta['JPEG.QuantizationTables']=qtc;
+  }
+  return meta;
+}
+function parseExifBlock(view,start,len,meta){
+  const dec=new TextDecoder('ascii');const hdr=dec.decode(new Uint8Array(view.buffer,start,6));if(!hdr.startsWith('Exif'))return;
+  const ts=start+6;const le=view.getUint16(ts)===0x4949;const ifdOff=view.getUint32(ts+4,le);parseIFD(view,ts,ts+ifdOff,le,meta,'IFD0');
+}
+function parseIFD(view,ts,ifdStart,le,meta,prefix){
+  if(ifdStart>=view.byteLength-2)return;const cnt=view.getUint16(ifdStart,le);
+  const names={0x010F:'Make',0x0110:'Model',0x0112:'Orientation',0x011A:'XResolution',0x011B:'YResolution',0x0128:'ResolutionUnit',0x0131:'Software',0x0132:'DateTime',0x8769:'ExifIFD',0x8825:'GPSIFD',0x829A:'ExposureTime',0x829D:'FNumber',0x8827:'ISO',0x9000:'ExifVersion',0x9003:'DateTimeOriginal',0x9004:'DateTimeDigitized',0x920A:'FocalLength',0xA001:'ColorSpace',0xA002:'PixelXDimension',0xA003:'PixelYDimension',0xA405:'FocalLengthIn35mm',0xA420:'ImageUniqueID',0xA430:'CameraOwnerName',0xA431:'BodySerialNumber',0xA434:'LensModel'};
+  for(let i=0;i<cnt&&(ifdStart+2+i*12+12)<=view.byteLength;i++){
+    const es=ifdStart+2+i*12;const tag=view.getUint16(es,le);const type=view.getUint16(es+2,le);const nv=view.getUint32(es+4,le);const vo=view.getUint32(es+8,le);
+    const tn=names[tag]||`Tag_0x${tag.toString(16).padStart(4,'0')}`;
+    if(tag===0x8769||tag===0x8825){parseIFD(view,ts,ts+vo,le,meta,tag===0x8769?'EXIF':'GPS');continue;}
+    let val;
+    if(type===2){const ss=nv>4?ts+vo:es+8;if(ss+nv<=view.byteLength)val=new TextDecoder('ascii').decode(new Uint8Array(view.buffer,ss,nv-1));}
+    else if(type===3)val=nv>2?view.getUint16(ts+vo,le):view.getUint16(es+8,le);
+    else if(type===4)val=nv>1?view.getUint32(ts+vo,le):view.getUint32(es+8,le);
+    else if(type===5){const rs=ts+vo;if(rs+8<=view.byteLength){const num=view.getUint32(rs,le),den=view.getUint32(rs+4,le);val=den?`${num}/${den} (${(num/den).toFixed(4)})`:num;}}
+    else if(type===7&&nv<=4){const b=[];for(let j=0;j<nv;j++)b.push(view.getUint8(es+8+j));val=b.map(b=>String.fromCharCode(b)).join('');}
+    if(val!==undefined)meta[`${prefix}.${tn}`]=val;
+  }
+}
+
+function renderMetadata(el) {
+  if (!state.imageData) { el.innerHTML = noEvidenceHTML(icons.search, 'No evidence image loaded'); return; }
+  const d = state.imageData;
+  const meta = parseExifFromBuffer(d.arrayBuffer);
+  meta['Image.Width'] = d.width; meta['Image.Height'] = d.height;
+  meta['Image.MimeType'] = d.type; meta['File.Name'] = d.name;
+  meta['File.LastModified'] = new Date(d.lastModified).toISOString();
+
+  const anomalies = [];
+  if (meta['IFD0.Software']) anomalies.push({level:'warning',msg:`Editing software detected: ${meta['IFD0.Software']}`});
+  if (meta['EXIF.DateTimeOriginal']&&meta['IFD0.DateTime']&&meta['EXIF.DateTimeOriginal']!==meta['IFD0.DateTime']) anomalies.push({level:'warning',msg:'DateTime mismatch between EXIF and IFD0 timestamps'});
+  if (!meta['EXIF.DateTimeOriginal']&&!meta['IFD0.DateTime']) anomalies.push({level:'info',msg:'No timestamp metadata found — may have been stripped'});
+  if (!meta['IFD0.Make']&&!meta['IFD0.Model']) anomalies.push({level:'info',msg:'No camera make/model — possible screenshot or processed image'});
+
+  el.innerHTML = `<div class="page fade-in">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+      <div>
+        <h1 style="font-family:var(--font-display);font-size:20px;font-weight:600;display:flex;align-items:center;gap:8px">${icons.search} Metadata / EXIF Analysis</h1>
+        <div style="font-size:13px;color:var(--muted);margin-top:3px">${d.name}</div>
+      </div>
+      <button class="btn btn-sm" onclick="copyMeta()">${icons.copy} Copy All</button>
+    </div>
+    ${anomalies.map(a=>`<div class="alert ${a.level==='warning'?'alert-warning':'alert-info'}" style="margin-bottom:8px">${a.level==='warning'?icons.warn:icons.info}<span>${a.msg}</span></div>`).join('')}
+    <div class="input-group" style="margin-bottom:14px">
+      <span class="input-icon">${icons.search}</span>
+      <input class="input" id="meta-search" placeholder="Search metadata fields..." oninput="filterMeta(this.value)" style="background:var(--surface)">
+    </div>
+    <div class="card" style="overflow:hidden">
+      <table class="data-table" id="meta-table">
+        <thead><tr><th>Field</th><th>Value</th></tr></thead>
+        <tbody id="meta-body"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:8px;font-size:13px;color:var(--muted)"><span id="meta-count"></span></div>
+  </div>`;
+
+  const entries = Object.entries(meta);
+  window._metaEntries = entries;
+  window.filterMeta = (q) => {
+    const filtered = q ? entries.filter(([k,v])=>k.toLowerCase().includes(q.toLowerCase())||String(v).toLowerCase().includes(q.toLowerCase())) : entries;
+    renderMetaRows(filtered);
+  };
+  window.copyMeta = () => { navigator.clipboard.writeText(entries.map(([k,v])=>`${k}: ${v}`).join('\n')); };
+  function renderMetaRows(rows) {
+    document.getElementById('meta-body').innerHTML = rows.map(([k,v])=>`<tr><td>${k}</td><td>${String(v)}</td></tr>`).join('');
+    document.getElementById('meta-count').textContent = `${rows.length} fields`;
+  }
+  renderMetaRows(entries);
+}
+
+// ==================== ELA ANALYSIS ====================
+function renderELA(el) {
+  if (!state.imageData) { el.innerHTML = noEvidenceHTML(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`, 'No evidence image loaded'); return; }
+
+  el.innerHTML = `<div class="page-full">
+    <div class="toolbar">
+      <div class="toolbar-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg> Error Level Analysis</div>
+      <div class="toolbar-sep"></div>
+      <span class="toolbar-label">JPEG Quality:</span>
+      <div class="slider-wrap">
+        <input type="range" id="ela-quality" min="1" max="99" value="75" oninput="document.getElementById('ela-qval').textContent=this.value+'%';runELA()">
+        <span class="slider-val" id="ela-qval">75%</span>
+      </div>
+      <div class="toolbar-sep"></div>
+      <span class="toolbar-label">Scale:</span>
+      <div class="slider-wrap">
+        <input type="range" id="ela-scale" min="1" max="50" value="15" oninput="document.getElementById('ela-sval').textContent=this.value+'×';runELA()">
+        <span class="slider-val" id="ela-sval">15×</span>
+      </div>
+      <div id="ela-spinner" style="display:none" class="spinner" style="width:16px;height:16px"></div>
+    </div>
+    <div class="canvas-wrap"><canvas id="ela-canvas"></canvas></div>
+    <div style="border-top:1px solid var(--border);background:var(--surface);padding:10px 14px;flex-shrink:0">
+      <div class="alert alert-warning" style="background:transparent;border:none;padding:0">
+        ${icons.warn}
+        <div style="font-size:13px">
+          <strong style="color:var(--text)">How to interpret:</strong> ELA highlights regions with different compression levels. In an unmodified JPEG, all regions should show similar error levels. Bright spots may indicate areas that were modified after the original compression.
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  window.runELA = () => {
+    const d = state.imageData;
+    const quality = parseInt(document.getElementById('ela-quality').value);
+    const scale = parseInt(document.getElementById('ela-scale').value);
+    document.getElementById('ela-spinner').style.display = '';
+    const canvas = document.getElementById('ela-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    canvas.width = d.width; canvas.height = d.height;
+    ctx.drawImage(d.imageElement, 0, 0);
+    const orig = ctx.getImageData(0,0,canvas.width,canvas.height);
+    const tmp = document.createElement('canvas');
+    tmp.width=d.width; tmp.height=d.height;
+    const tc=tmp.getContext('2d'); tc.drawImage(d.imageElement,0,0);
+    const url = tmp.toDataURL('image/jpeg', quality/100);
+    const img = new Image();
+    img.onload = () => {
+      tc.drawImage(img,0,0);
+      const rc=tc.getImageData(0,0,canvas.width,canvas.height);
+      const ela=ctx.createImageData(canvas.width,canvas.height);
+      for(let i=0;i<orig.data.length;i+=4){
+        ela.data[i]=Math.min(255,Math.abs(orig.data[i]-rc.data[i])*scale);
+        ela.data[i+1]=Math.min(255,Math.abs(orig.data[i+1]-rc.data[i+1])*scale);
+        ela.data[i+2]=Math.min(255,Math.abs(orig.data[i+2]-rc.data[i+2])*scale);
+        ela.data[i+3]=255;
+      }
+      ctx.putImageData(ela,0,0);
+      const sp = document.getElementById('ela-spinner');
+      if(sp) sp.style.display='none';
+    };
+    img.src=url;
+  };
+  runELA();
+}
+
+// ==================== HISTOGRAM ====================
+function renderHistogram(el) {
+  if (!state.imageData) { el.innerHTML = noEvidenceHTML(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`, 'No evidence image loaded'); return; }
+
+  // Compute histogram data
+  const tmp = document.createElement('canvas');
+  tmp.width=state.imageData.width; tmp.height=state.imageData.height;
+  const tc=tmp.getContext('2d'); tc.drawImage(state.imageData.imageElement,0,0);
+  const pixels=tc.getImageData(0,0,tmp.width,tmp.height).data;
+  const r=new Array(256).fill(0),g=new Array(256).fill(0),b=new Array(256).fill(0),lum=new Array(256).fill(0);
+  for(let i=0;i<pixels.length;i+=4){r[pixels[i]]++;g[pixels[i+1]]++;b[pixels[i+2]]++;lum[Math.round(0.299*pixels[i]+0.587*pixels[i+1]+0.114*pixels[i+2])]++;}
+  const histData = Array.from({length:256},(_,i)=>({value:i,red:r[i],green:g[i],blue:b[i],luminance:lum[i]}));
+
+  function calcStats(arr) {
+    const total=arr.reduce((s,v)=>s+v,0);if(!total)return{mean:'0',std:'0',min:0,max:0};
+    let sum=0,sum2=0,mn=255,mx=0;
+    arr.forEach((cnt,v)=>{sum+=v*cnt;if(cnt>0){mn=Math.min(mn,v);mx=Math.max(mx,v);}});
+    const mean=sum/total;
+    arr.forEach((cnt,v)=>{sum2+=cnt*(v-mean)*(v-mean);});
+    return{mean:mean.toFixed(1),std:Math.sqrt(sum2/total).toFixed(1),min:mn,max:mx};
+  }
+  const stats={red:calcStats(r),green:calcStats(g),blue:calcStats(b),luminance:calcStats(lum)};
+
+  el.innerHTML = `<div class="page fade-in">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px">
+      <div>
+        <h1 style="font-family:var(--font-display);font-size:20px;font-weight:600;display:flex;align-items:center;gap:8px"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Histogram Analysis</h1>
+        <div style="font-size:13px;color:var(--muted);margin-top:3px">${state.imageData.name}</div>
+      </div>
+      <div class="tabs" id="hist-tabs">
+        <div class="tab active" onclick="setHistChannel('all',this)">RGB</div>
+        <div class="tab" onclick="setHistChannel('red',this)">R</div>
+        <div class="tab" onclick="setHistChannel('green',this)">G</div>
+        <div class="tab" onclick="setHistChannel('blue',this)">B</div>
+        <div class="tab" onclick="setHistChannel('luminance',this)">Lum</div>
+      </div>
+    </div>
+    <div class="card card-body" style="margin-bottom:14px">
+      <canvas id="hist-canvas" height="220" style="width:100%;height:220px"></canvas>
+    </div>
+    <div class="grid-4">
+      ${['red','green','blue','luminance'].map(ch=>`
+        <div class="stat-card">
+          <div class="sc-label" style="color:${ch==='red'?'#f87171':ch==='green'?'#4ade80':ch==='blue'?'#60a5fa':'#a3a3a3'}">${ch}</div>
+          <div class="sc-row"><span>Mean:</span><span>${stats[ch].mean}</span></div>
+          <div class="sc-row"><span>Std Dev:</span><span>${stats[ch].std}</span></div>
+          <div class="sc-row"><span>Range:</span><span>${stats[ch].min}–${stats[ch].max}</span></div>
+        </div>
+      `).join('')}
+    </div>
+  </div>`;
+
+  let activeChannel = 'all';
+  const channelConfig = {
+    all: [{key:'red',color:'#ef4444'},{key:'green',color:'#22c55e'},{key:'blue',color:'#3b82f6'}],
+    red:[{key:'red',color:'#ef4444'}],green:[{key:'green',color:'#22c55e'}],
+    blue:[{key:'blue',color:'#3b82f6'}],luminance:[{key:'luminance',color:'#a3a3a3'}],
+  };
+
+  function drawHistogram(channel) {
+    const canvas = document.getElementById('hist-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.offsetWidth||800, H = 220;
+    canvas.width = W; canvas.height = H;
+    ctx.clearRect(0,0,W,H);
+    const cfg = channelConfig[channel];
+    const maxVal = Math.max(...histData.flatMap(d=>cfg.map(c=>d[c.key])));
+    const pad = {l:40,r:10,t:10,b:30};
+    const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+    // Grid
+    ctx.strokeStyle='#1e2530'; ctx.lineWidth=1;
+    for(let i=0;i<=4;i++){const y=pad.t+ch*(1-i/4);ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cw,y);ctx.stroke();}
+    // Axes
+    ctx.strokeStyle='#252d3a'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,pad.t+ch); ctx.lineTo(pad.l+cw,pad.t+ch); ctx.stroke();
+    // X labels
+    ctx.fillStyle='#5a6a7e'; ctx.font='9px JetBrains Mono, monospace'; ctx.textAlign='center';
+    for(let v=0;v<=255;v+=51){const x=pad.l+cw*(v/255);ctx.fillText(v,x,H-8);}
+    // Draw each channel
+    cfg.forEach(({key,color}) => {
+      ctx.beginPath();
+      ctx.strokeStyle=color; ctx.lineWidth=1.5;
+      ctx.fillStyle=color.replace(')',',0.15)').replace('rgb','rgba');
+      histData.forEach((d,i) => {
+        const x=pad.l+cw*(i/255), y=pad.t+ch*(1-d[key]/maxVal);
+        if(i===0){ctx.moveTo(x,y);}else{ctx.lineTo(x,y);}
+      });
+      ctx.stroke();
+      ctx.lineTo(pad.l+cw,pad.t+ch); ctx.lineTo(pad.l,pad.t+ch);
+      ctx.fillStyle=color+'20'; ctx.fill();
+    });
+  }
+
+  window.setHistChannel = (ch, tabEl) => {
+    activeChannel = ch;
+    document.querySelectorAll('#hist-tabs .tab').forEach(t=>t.classList.remove('active'));
+    tabEl.classList.add('active');
+    drawHistogram(ch);
+  };
+
+  setTimeout(()=>drawHistogram('all'), 50);
+}
+
+// ==================== LUMINANCE ====================
+function renderLuminance(el) {
+  if (!state.imageData) { el.innerHTML = noEvidenceHTML(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>`, 'No evidence image loaded'); return; }
+
+  el.innerHTML = `<div class="page-full">
+    <div class="toolbar">
+      <div class="toolbar-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg> Luminance & Gradient Analysis</div>
+      <div class="toolbar-sep"></div>
+      <select id="lum-mode" class="input" style="width:150px;height:28px;font-size:13px;padding:4px 8px" onchange="runLuminance()">
+        <option value="gradient">Sobel Gradient</option>
+        <option value="noise">Noise Analysis</option>
+        <option value="laplacian">Laplacian Edge</option>
+      </select>
+      <div class="toolbar-sep"></div>
+      <span class="toolbar-label">Sensitivity:</span>
+      <div class="slider-wrap">
+        <input type="range" id="lum-sens" min="1" max="20" value="5" oninput="document.getElementById('lum-sval').textContent=this.value+'×';runLuminance()">
+        <span class="slider-val" id="lum-sval">5×</span>
+      </div>
+    </div>
+    <div class="canvas-wrap"><canvas id="lum-canvas"></canvas></div>
+  </div>`;
+
+  window.runLuminance = () => {
+    const d = state.imageData;
+    const mode = document.getElementById('lum-mode').value;
+    const sens = parseInt(document.getElementById('lum-sens').value);
+    const canvas = document.getElementById('lum-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    canvas.width=d.width; canvas.height=d.height;
+    ctx.drawImage(d.imageElement,0,0);
+    const src=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const out=ctx.createImageData(canvas.width,canvas.height);
+    const w=canvas.width;
+    for(let y=1;y<canvas.height-1;y++){
+      for(let x=1;x<w-1;x++){
+        const idx=(y*w+x)*4;
+        if(mode==='gradient'){
+          const gl=(px,py)=>{const i=(py*w+px)*4;return 0.299*src.data[i]+0.587*src.data[i+1]+0.114*src.data[i+2];};
+          const gx=-gl(x-1,y-1)-2*gl(x-1,y)-gl(x-1,y+1)+gl(x+1,y-1)+2*gl(x+1,y)+gl(x+1,y+1);
+          const gy=-gl(x-1,y-1)-2*gl(x,y-1)-gl(x+1,y-1)+gl(x-1,y+1)+2*gl(x,y+1)+gl(x+1,y+1);
+          const m=Math.min(255,Math.sqrt(gx*gx+gy*gy)*sens);
+          out.data[idx]=m;out.data[idx+1]=m;out.data[idx+2]=m;out.data[idx+3]=255;
+        } else if(mode==='noise'){
+          const nb=[];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const ni=((y+dy)*w+(x+dx))*4;nb.push(src.data[ni]);}
+          nb.sort((a,b)=>a-b);const med=nb[3];const diff=Math.abs(src.data[idx]-med)*sens;const v=Math.min(255,diff);
+          out.data[idx]=v;out.data[idx+1]=v*0.6;out.data[idx+2]=v*0.3;out.data[idx+3]=255;
+        } else {
+          const gl=(px,py)=>{const i=(py*w+px)*4;return 0.299*src.data[i]+0.587*src.data[i+1]+0.114*src.data[i+2];};
+          const center=gl(x,y);const lap=-4*center+gl(x-1,y)+gl(x+1,y)+gl(x,y-1)+gl(x,y+1);
+          const v=Math.min(255,Math.abs(lap)*sens);
+          out.data[idx]=0;out.data[idx+1]=v;out.data[idx+2]=v*0.8;out.data[idx+3]=255;
+        }
+      }
+    }
+    ctx.putImageData(out,0,0);
+  };
+  runLuminance();
+}
+
+// ==================== HEX VIEWER ====================
+function renderHex(el) {
+  if (!state.imageData) { el.innerHTML = noEvidenceHTML(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`, 'No evidence image loaded'); return; }
+
+  const bytes = new Uint8Array(state.imageData.arrayBuffer);
+  const BPLINE=16, LPAGE=32, BPAGE=BPLINE*LPAGE;
+  const totalPages = Math.ceil(bytes.length / BPAGE);
+
+  // File signature
+  const sig = Array.from(bytes.slice(0,4)).map(b=>b.toString(16).padStart(2,'0').toUpperCase()).join(' ');
+  const sigTypes = {'FF D8 FF E0':'JPEG (JFIF)','FF D8 FF E1':'JPEG (EXIF)','FF D8 FF DB':'JPEG','89 50 4E 47':'PNG','47 49 46 38':'GIF','42 4D':'BMP','52 49 46 46':'RIFF (WebP)'};
+  const sigType = Object.entries(sigTypes).find(([k])=>sig.startsWith(k));
+
+  el.innerHTML = `<div class="page-full">
+    <div class="toolbar">
+      <div class="toolbar-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> Hex Viewer</div>
+      <span style="font-size:10px;color:var(--muted)">Sig: <span style="color:var(--primary)">${sig}</span>${sigType?' — '+sigType[1]:''}</span>
+      <div style="flex:1"></div>
+      <div class="input-group" style="width:200px">
+        <span class="input-icon">${icons.search}</span>
+        <input class="input" id="hex-search" placeholder="Search hex (e.g., FF D8)" style="height:28px;font-size:10px;padding:4px 8px 4px 28px" oninput="hexSearch(this.value)">
+      </div>
+      <button class="btn btn-ghost btn-sm" id="hex-prev" onclick="hexChangePage(-1)">${icons.chevLeft}</button>
+      <span id="hex-page-label" style="font-size:10px;color:var(--muted);min-width:60px;text-align:center">1/${totalPages}</span>
+      <button class="btn btn-ghost btn-sm" id="hex-next" onclick="hexChangePage(1)">${icons.chevRight}</button>
+    </div>
+    <div class="flex-1" style="overflow:auto;padding:12px 14px;font-size:13px;font-family:var(--font-mono)">
+      <div style="min-width:640px">
+        <div style="display:flex;color:var(--muted);margin-bottom:8px;padding:0 4px">
+          <span style="width:80px;flex-shrink:0">Offset</span>
+          <span style="flex:1">${Array.from({length:16},(_,i)=>i.toString(16).toUpperCase().padStart(2,'0')).join(' ')}</span>
+          <span style="width:150px;margin-left:16px">ASCII</span>
+        </div>
+        <div style="border-top:1px solid var(--border);margin-bottom:4px"></div>
+        <div id="hex-rows"></div>
+      </div>
+    </div>
+    <div class="status-bar">
+      <span>File size: ${bytes.length.toLocaleString()} bytes</span>
+      <span id="hex-offset-label">Offset: 0x00000000</span>
+      <span id="hex-match-label" style="color:var(--amber);display:none"></span>
+    </div>
+  </div>`;
+
+  let page = 0;
+  let highlightOffsets = new Set();
+
+  window.hexChangePage = (dir) => {
+    page = Math.max(0, Math.min(totalPages-1, page+dir));
+    renderHexRows();
+  };
+  window.hexSearch = (q) => {
+    const clean = q.replace(/\s/g,'').toLowerCase();
+    highlightOffsets = new Set();
+    if (clean.length>=2 && clean.length%2===0) {
+      const sb=[];for(let i=0;i<clean.length;i+=2)sb.push(parseInt(clean.substr(i,2),16));
+      for(let i=0;i<=bytes.length-sb.length;i++){let m=true;for(let j=0;j<sb.length;j++)if(bytes[i+j]!==sb[j]){m=false;break;}if(m)for(let j=0;j<sb.length;j++)highlightOffsets.add(i+j);}
+    }
+    renderHexRows();
+  };
+
+  function renderHexRows() {
+    const start = page * BPAGE;
+    document.getElementById('hex-page-label').textContent = `${page+1}/${totalPages}`;
+    document.getElementById('hex-offset-label').textContent = `Offset: 0x${start.toString(16).toUpperCase().padStart(8,'0')}`;
+    document.getElementById('hex-prev').disabled = page===0;
+    document.getElementById('hex-next').disabled = page>=totalPages-1;
+    const ml = document.getElementById('hex-match-label');
+    if(highlightOffsets.size>0){ml.style.display='';ml.textContent=`${highlightOffsets.size} matches`;}else{ml.style.display='none';}
+
+    let html = '';
+    for(let i=0;i<LPAGE;i++){
+      const lineStart=start+i*BPLINE;if(lineStart>=bytes.length)break;
+      const lineBytes=bytes.slice(lineStart,lineStart+BPLINE);
+      let hexPart='',asciiPart='';
+      lineBytes.forEach((b,j)=>{
+        const gi=lineStart+j;
+        const hl=highlightOffsets.has(gi);
+        const h=b.toString(16).toUpperCase().padStart(2,'0');
+        hexPart+=hl?`<span class="hex-highlight">${h}</span> `:`${h} `;
+        asciiPart+=(b>=32&&b<=126)?String.fromCharCode(b):'.';
+      });
+      // Pad
+      const pad=BPLINE-lineBytes.length;if(pad>0)hexPart+='   '.repeat(pad);
+      html+=`<div class="hex-row"><span class="hex-offset">${lineStart.toString(16).toUpperCase().padStart(8,'0')}</span><span class="hex-bytes">${hexPart}</span><span class="hex-ascii">${asciiPart}</span></div>`;
+    }
+    document.getElementById('hex-rows').innerHTML = html;
+  }
+  renderHexRows();
+}
+
+// ==================== FORENSIC REPORT ====================
+function renderReport(el) {
+  if (!state.imageData) { el.innerHTML = noEvidenceHTML(icons.printer, 'No evidence image loaded'); return; }
+  const d = state.imageData;
+  const ac = state.activeCase;
+
+  el.innerHTML = `<div class="page fade-in" style="max-width:800px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
+      <div>
+        <h1 style="font-family:var(--font-display);font-size:18px;font-weight:600;display:flex;align-items:center;gap:8px">${icons.printer} Forensic Report</h1>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">Generate examination report for evidence documentation</div>
+      </div>
+      <button class="btn btn-sm" onclick="window.print()">${icons.printer} Print</button>
+    </div>
+
+    <div class="card" style="padding:24px">
+      <div style="text-align:center;padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:20px">
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px;color:var(--primary)">
+          ${icons.shield}
+          <h2 style="font-family:var(--font-display);font-size:15px;font-weight:700;color:var(--text)">DIGITAL IMAGE FORENSIC EXAMINATION REPORT</h2>
+        </div>
+        <div style="font-size:13px;color:var(--muted);letter-spacing:0.15em">CONFIDENTIAL — LAW ENFORCEMENT SENSITIVE</div>
+      </div>
+
+      <div class="form-row" style="margin-bottom:14px">
+        <div class="form-field"><label>Case Number</label><input class="input" id="rpt-case" value="${ac?.case_number||''}" placeholder="CASE-2024-001"></div>
+        <div class="form-field"><label>Date of Examination</label><input class="input" type="date" id="rpt-date" value="${new Date().toISOString().split('T')[0]}"></div>
+        <div class="form-field"><label>Examiner Name</label><input class="input" id="rpt-examiner" value="${ac?.examiner||''}" placeholder="Full name"></div>
+        <div class="form-field"><label>Agency / Organization</label><input class="input" id="rpt-agency" value="" placeholder="Organization name"></div>
+      </div>
+      <div class="sep"></div>
+
+      <div style="margin-bottom:14px">
+        <div style="font-size:12px;font-weight:500;display:flex;align-items:center;gap:7px;margin-bottom:10px;font-family:var(--font-display)">${icons.info} Evidence Details</div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:12px;font-size:10px;display:grid;grid-template-columns:1fr 1fr;gap:4px 24px">
+          <div><span style="color:var(--muted)">File Name: </span>${d.name}</div>
+          <div><span style="color:var(--muted)">File Type: </span>${d.type}</div>
+          <div><span style="color:var(--muted)">Dimensions: </span>${d.width} × ${d.height} pixels</div>
+          <div><span style="color:var(--muted)">File Size: </span>${(d.size/1024).toFixed(1)} KB (${d.size.toLocaleString()} bytes)</div>
+          <div><span style="color:var(--muted)">Last Modified: </span>${new Date(d.lastModified).toISOString()}</div>
+        </div>
+      </div>
+      <div class="sep"></div>
+
+      <div class="form-field" style="margin-bottom:14px"><label>Methodology / Tools Used</label>
+        <textarea class="input" id="rpt-method" rows="3" placeholder="Describe the forensic tools and techniques applied..."></textarea></div>
+      <div class="form-field" style="margin-bottom:14px"><label>Findings</label>
+        <textarea class="input" id="rpt-findings" rows="5" placeholder="Detail all observations and findings from the forensic examination...">${ac?.findings||''}</textarea></div>
+      <div class="form-field" style="margin-bottom:14px"><label>Verdict</label>
+        <select class="input" id="rpt-verdict" style="height:36px">
+          <option value="pending">Pending</option>
+          <option value="authentic">Authentic — No manipulation detected</option>
+          <option value="manipulated">Manipulated — Evidence of alteration</option>
+          <option value="inconclusive">Inconclusive — Unable to determine</option>
+        </select></div>
+      <div class="form-field" style="margin-bottom:20px"><label>Conclusion</label>
+        <textarea class="input" id="rpt-conclusion" rows="4" placeholder="Provide the overall conclusion and professional opinion based on the examination..."></textarea></div>
+      <div class="sep"></div>
+      <div class="grid-2" style="padding-top:16px">
+        <div><div style="height:48px;border-bottom:1px solid var(--border2)"></div><div style="font-size:12px;color:var(--muted);margin-top:6px">Examiner Signature</div></div>
+        <div><div style="height:48px;border-bottom:1px solid var(--border2)"></div><div style="font-size:12px;color:var(--muted);margin-top:6px">Date</div></div>
+      </div>
+    </div>
+  </div>`;
+  if(ac?.verdict) document.getElementById('rpt-verdict').value=ac.verdict;
+}
+
+// ==================== CASE MANAGER ====================
+function renderCases(el) {
+  let editingId = null;
+  let showForm = false;
+  const EMPTY = {case_number:'',title:'',examiner:'',status:'open',verdict:'pending',description:''};
+  let form = {...EMPTY};
+
+  function render() {
+    const q = document.getElementById('case-search')?.value||'';
+    const filtered = state.cases.filter(c=>!q||c.case_number?.toLowerCase().includes(q.toLowerCase())||c.title?.toLowerCase().includes(q.toLowerCase()));
+
+    el.innerHTML = `<div class="page fade-in">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <h1 style="font-family:var(--font-display);font-size:18px;font-weight:600;display:flex;align-items:center;gap:8px">${icons.briefcase} Case Manager</h1>
+        <button class="btn btn-primary btn-sm" onclick="openNewCase()">${icons.plus} New Case</button>
+      </div>
+
+      ${state.activeCase?`<div class="case-banner" style="margin-bottom:14px">${icons.folder}<span class="cb-num">${state.activeCase.case_number}</span><span class="cb-title">— currently active</span><span class="spacer"></span><button class="btn btn-sm" onclick="showPage('load')">Continue Examination</button></div>`:''}
+
+      <div class="input-group" style="margin-bottom:14px">
+        <span class="input-icon">${icons.search}</span>
+        <input class="input" id="case-search" placeholder="Search by case number or title..." oninput="renderCaseList(this.value)" style="background:var(--surface)">
+      </div>
+
+      ${showForm?`
+      <div class="form-panel" style="margin-bottom:14px">
+        <div class="form-panel-title">${editingId?'Edit Case':'New Case'}</div>
+        <div class="form-row" style="margin-bottom:12px">
+          <div class="form-field"><label>Case Number *</label><input class="input" id="fc-num" value="${form.case_number}" placeholder="FC-2026-001" style="background:var(--surface2)"></div>
+          <div class="form-field"><label>Title *</label><input class="input" id="fc-title" value="${form.title}" placeholder="Case title" style="background:var(--surface2)"></div>
+          <div class="form-field"><label>Examiner</label><input class="input" id="fc-examiner" value="${form.examiner}" placeholder="Examiner name" style="background:var(--surface2)"></div>
+          <div class="form-field"><label>Status</label><select class="input" id="fc-status" style="background:var(--surface2);height:36px"><option value="open">Open</option><option value="in_progress">In Progress</option><option value="completed">Completed</option><option value="archived">Archived</option></select></div>
+          <div class="form-field"><label>Verdict</label><select class="input" id="fc-verdict" style="background:var(--surface2);height:36px"><option value="pending">Pending</option><option value="authentic">Authentic</option><option value="manipulated">Manipulated</option><option value="inconclusive">Inconclusive</option></select></div>
+          <div class="form-field" style="grid-column:span 2"><label>Description / Notes</label><textarea class="input" id="fc-desc" rows="2" style="background:var(--surface2)">${form.description}</textarea></div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn btn-ghost btn-sm" onclick="cancelForm()">${icons.x} Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="saveCase()">${icons.check} ${editingId?'Save':'Create'} Case</button>
+        </div>
+      </div>`:''}
+
+      <div class="card" style="overflow:hidden">
+        <div style="display:grid;grid-template-columns:100px 1fr 120px 100px 110px 120px;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);background:var(--surface2);padding:8px 12px;border-bottom:1px solid var(--border)">
+          <span>Case #</span><span>Title</span><span>Examiner</span><span>Status</span><span>Verdict</span><span></span>
+        </div>
+        ${filtered.length===0?`<div style="padding:20px 14px;font-size:13px;color:var(--muted)">No cases found.</div>`:''}
+        ${filtered.map(c=>{
+          const isActive=state.activeCase?.id===c.id;
+          return `<div style="display:grid;grid-template-columns:100px 1fr 120px 100px 110px 120px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--border);${isActive?'background:var(--primary-dim);border-left:2px solid var(--primary)':''}transition:background 0.1s" onmouseover="this.style.background='${isActive?'var(--primary-dim)':'var(--surface2)'}'" onmouseout="this.style.background='${isActive?'var(--primary-dim)':''}'" >
+            <span style="font-size:13px;color:var(--primary);font-weight:500">${c.case_number}</span>
+            <span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px">${c.title}</span>
+            <span style="font-size:13px;color:var(--muted)">${c.examiner||'—'}</span>
+            <span class="badge status-${c.status||'open'}">${(c.status||'open').replace('_',' ')}</span>
+            <span class="badge verdict-${c.verdict||'pending'}">${c.verdict||'pending'}</span>
+            <div style="display:flex;gap:4px;justify-content:flex-end">
+              <button class="btn btn-sm ${isActive?'btn-primary':''}" onclick="openCase('${c.id}')">${icons.folder} ${isActive?'Active':'Open'}</button>
+              <button class="btn btn-ghost btn-sm" onclick="editCase('${c.id}')" title="Edit">${icons.edit}</button>
+              <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteCase('${c.id}')" title="Delete">${icons.trash}</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+
+    // Restore form values after re-render
+    if (showForm) {
+      if(document.getElementById('fc-status')) document.getElementById('fc-status').value = form.status;
+      if(document.getElementById('fc-verdict')) document.getElementById('fc-verdict').value = form.verdict;
+    }
+  }
+
+  window.renderCaseList = render;
+  window.openNewCase = () => { showForm=true; editingId=null; form={...EMPTY}; render(); };
+  window.cancelForm = () => { showForm=false; editingId=null; render(); };
+  window.saveCase = () => {
+    const num=document.getElementById('fc-num').value.trim();
+    const title=document.getElementById('fc-title').value.trim();
+    if(!num||!title) return;
+    const f={case_number:num,title,examiner:document.getElementById('fc-examiner').value,status:document.getElementById('fc-status').value,verdict:document.getElementById('fc-verdict').value,description:document.getElementById('fc-desc').value};
+    if(editingId){const i=state.cases.findIndex(c=>c.id===editingId);if(i>=0)state.cases[i]={...state.cases[i],...f};if(state.activeCase?.id===editingId)state.activeCase={...state.activeCase,...f};}
+    else{state.cases.unshift({id:newCaseId(),created:Date.now(),...f});}
+    saveCases(); showForm=false; editingId=null; render();
+  };
+  window.editCase = (id) => { const c=state.cases.find(x=>x.id===id); if(!c)return; form={case_number:c.case_number||'',title:c.title||'',examiner:c.examiner||'',status:c.status||'open',verdict:c.verdict||'pending',description:c.description||''}; editingId=id; showForm=true; render(); };
+  window.deleteCase = (id) => { if(!confirm('Delete this case?'))return; if(state.activeCase?.id===id)state.activeCase=null; state.cases=state.cases.filter(c=>c.id!==id); saveCases(); updateTopbarCase(); render(); };
+  window.openCase = (id) => { const c=state.cases.find(x=>x.id===id); if(!c)return; state.activeCase=c; updateTopbarCase(); showPage('load'); };
+
+  render();
+}
+
+// ==================== INIT ====================
+showPage('dashboard');
+</script>
+</body>
+</html>
